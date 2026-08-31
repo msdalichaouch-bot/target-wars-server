@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Target Wars Multiplayer</title>
+</head>
+<body>
+  <canvas id="gameCanvas" width="600" height="400" style="background:#111;"></canvas>
+  <script>
+    const ws = new WebSocket("ws://localhost:8080");
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let targets = [
+      {x:100,y:100,r:15,hit:false},
+      {x:300,y:200,r:15,hit:false}
+    ];
+
+    ws.onmessage = e => {
+      const data = JSON.parse(e.data);
+      if(data.type === "hit") {
+        targets[data.index].hit = true;
+        draw();
+      }
+    };
+
+    canvas.addEventListener("click", e => {
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      targets.forEach((t,i) => {
+        const dist = Math.hypot(mx - t.x, my - t.y);
+        if(dist < t.r && !t.hit) {
+          t.hit = true;
+          ws.send(JSON.stringify({type:"hit", index:i}));
+          draw();
+        }
+      });
+    });
+
+    function draw() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      targets.forEach(t => {
+        ctx.beginPath();
+        ctx.arc(t.x,t.y,t.r,0,Math.PI*2);
+        ctx.fillStyle = t.hit ? "green" : "red";
+        ctx.fill();
+      });
+    }
+    draw();
+  </script>
+</body>
+</html>

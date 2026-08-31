@@ -1,0 +1,4 @@
+git add .
+git commit -m "Prototype WebSocket"
+git remote add origin https://github.com/ms.dalichaouch/target-wars-server.git
+git push -u origin main
