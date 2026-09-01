@@ -2,53 +2,86 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Target Wars Multiplayer</title>
+  <title>Target Wars Client</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; }
+    canvas { border: 2px solid #333; margin-top: 20px; }
+    #leaderboard { margin-top: 20px; list-style: none; padding: 0; }
+    #leaderboard li { background: #f0f0f0; margin: 5px; padding: 10px; border-radius: 5px; }
+  </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="600" height="400" style="background:#111;"></canvas>
+  <h1>🎯 Target Wars</h1>
+  <button onclick="shoot()">Tirer</button>
+
+  <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+  <h2>Classement des joueurs</h2>
+  <ul id="leaderboard"></ul>
+
   <script>
-    const ws = new WebSocket("ws://localhost:8080");
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
+    const ws = new WebSocket("wss://target-wars-server.onrender.com");
 
-    let targets = [
-      {x:100,y:100,r:15,hit:false},
-      {x:300,y:200,r:15,hit:false}
-    ];
+    ws.onopen = () => {
+      console.log("✅ Connecté au serveur Render !");
+    };
 
-    ws.onmessage = e => {
-      const data = JSON.parse(e.data);
-      if(data.type === "hit") {
-        targets[data.index].hit = true;
-        draw();
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "score") {
+        updateLeaderboard(data.scores);
       }
     };
 
-    canvas.addEventListener("click", e => {
-      const rect = canvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
-
-      targets.forEach((t,i) => {
-        const dist = Math.hypot(mx - t.x, my - t.y);
-        if(dist < t.r && !t.hit) {
-          t.hit = true;
-          ws.send(JSON.stringify({type:"hit", index:i}));
-          draw();
-        }
-      });
-    });
-
-    function draw() {
-      ctx.clearRect(0,0,canvas.width,canvas.height);
-      targets.forEach(t => {
-        ctx.beginPath();
-        ctx.arc(t.x,t.y,t.r,0,Math.PI*2);
-        ctx.fillStyle = t.hit ? "green" : "red";
-        ctx.fill();
-      });
+    function shoot() {
+      ws.send("tir");
+      drawShot();
     }
-    draw();
+
+    // 🎨 Canvas setup
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    function drawTarget() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Cercle extérieur
+      ctx.beginPath();
+      ctx.arc(200, 200, 150, 0, Math.PI * 2);
+      ctx.fillStyle = "lightblue";
+      ctx.fill();
+      ctx.stroke();
+
+      // Cercle intermédiaire
+      ctx.beginPath();
+      ctx.arc(200, 200, 100, 0, Math.PI * 2);
+      ctx.fillStyle = "yellow";
+      ctx.fill();
+      ctx.stroke();
+
+      // Cercle central
+      ctx.beginPath();
+      ctx.arc(200, 200, 50, 0, Math.PI * 2);
+      ctx.fillStyle = "red";
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    function drawShot() {
+      const x = Math.random() * 400;
+      const y = Math.random() * 400;
+      ctx.beginPath();
+      ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "black";
+      ctx.fill();
+    }
+
+    drawTarget();
+
+    function updateLeaderboard(scores) {
+      const sorted = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+      document.getElementById("leaderboard").innerHTML =
+        sorted.map(([player, score]) => `<li>${player}: ${score}</li>`).join("");
+    }
   </script>
 </body>
 </html>
