@@ -1,21 +1,44 @@
-const WebSocket = require('ws');
-const server = new WebSocket.Server({ port: 8080 });
+const WebSocket = require("ws");
+const PORT = process.env.PORT || 10000;
 
-let players = [];
+const wss = new WebSocket.Server({ port: PORT });
+let scores = {};
+let playerCount = 0;
 
-server.on('connection', socket => {
-  players.push(socket);
-  console.log("Nouveau joueur connecté !");
+function broadcast(message) {
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+}
 
-  socket.on('message', msg => {
-    players.forEach(p => {
-      if(p.readyState === WebSocket.OPEN) {
-        p.send(msg);
-      }
-    });
+wss.on("connection", (ws) => {
+  // Assigner un ID unique au joueur
+  playerCount++;
+  ws.id = "Player" + playerCount;
+  scores[ws.id] = 0;
+
+  console.log(`${ws.id} connecté`);
+
+  // Envoyer le leaderboard initial
+  ws.send(JSON.stringify({ type: "score", scores }));
+
+  ws.on("message", (msg) => {
+    if (msg.toString() === "tir") {
+      scores[ws.id] += 1;
+      console.log(`${ws.id} a tiré → score = ${scores[ws.id]}`);
+
+      // Diffuser le leaderboard mis à jour
+      broadcast(JSON.stringify({ type: "score", scores }));
+    }
   });
 
-  socket.on('close', () => {
-    players = players.filter(p => p !== socket);
+  ws.on("close", () => {
+    console.log(`${ws.id} déconnecté`);
+    delete scores[ws.id];
+    broadcast(JSON.stringify({ type: "score", scores }));
   });
 });
+
+console.log(`🎯 Serveur WebSocket Target Wars lancé sur le port ${PORT}`);
